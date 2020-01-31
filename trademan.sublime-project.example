@@ -1,0 +1,23 @@
+{
+  "folders":
+  [
+    {
+      "follow_symlinks": true,
+      "path": ".",
+      "name": "TradeMan"
+    }
+  ],
+
+  "settings": {
+    "default_encoding": "UTF-8",
+    "fallback_encoding": "UTF-8",
+    "encoding": "UTF-8",
+    "show_encoding": true,
+
+    "font_size": 13,
+
+    "tab_size": 2,
+    "use_tab_stops": true,
+    "translate_tabs_to_spaces": true
+  }
+}
