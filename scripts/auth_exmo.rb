@@ -1,5 +1,5 @@
-require 'net/https'
-require "json"
+# require 'net/https'
+# require "json"
 
 # module Exmo
 #   class Error < StandardError

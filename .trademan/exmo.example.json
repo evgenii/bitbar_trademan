@@ -2,7 +2,7 @@
   "BTC": [
     {
       "script": "exmo",
-      "currency": "BTC-AUSD",
+      "currency": "BTC_USD",
       "options": {
         "arg1": "val1"
       }
