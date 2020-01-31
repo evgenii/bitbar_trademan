@@ -8,6 +8,43 @@
     }
   ],
 
+  "build_systems": [
+    {
+      "name": "BitBar-TradeMan",
+      "shell": true,
+      "working_dir": "$project_path",
+      "cmd": [
+        "ruby ./traideman.rb"
+      ],
+      "variants": [
+        {
+          "name": "Exec",
+          "cmd": [
+            "ENV=dev ruby ./traideman.rb"
+          ]
+        },
+        {
+          "name": "Copy to HOME BitBar",
+          "cmd": [
+            "cp -f ./traideman.rb ~/.bitbar_plugins/traideman.rb"
+          ]
+        },
+        {
+          "name": "Remove from HOME BitBar",
+          "cmd": [
+            "rm ~/.bitbar_plugins/traideman.rb"
+          ]
+        },
+        {
+          "name": "To BASE64",
+          "cmd": [
+            "base64 -in $file"
+          ]
+        }
+      ]
+    }
+  ],
+
   "settings": {
     "default_encoding": "UTF-8",
     "fallback_encoding": "UTF-8",
