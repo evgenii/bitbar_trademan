@@ -1,76 +1,76 @@
 require 'net/https'
 require "json"
 
-module Exmo
-  class Error < StandardError
-    attr_reader :object
+# module Exmo
+#   class Error < StandardError
+#     attr_reader :object
 
-    def initialize(object)
-      @object = object
-    end
-  end
+#     def initialize(object)
+#       @object = object
+#     end
+#   end
 
-  class API
-    class << self
-      KEY = "K-b123456"      # TODO replace with your api key from settings page
-      SECRET = "S-e123456"   # TODO replace with your api secret from settings page
+#   class API
+#     class << self
+#       KEY = "K-b123456"      # TODO replace with your api key from settings page
+#       SECRET = "S-e123456"   # TODO replace with your api secret from settings page
 
-      def api_query(method, params = nil)
-        raise ArgumentError unless method.is_a?(String) || method.is_a?(Symbol)
+#       def api_query(method, params = nil)
+#         raise ArgumentError unless method.is_a?(String) || method.is_a?(Symbol)
 
-        params = {} if params.nil?
-        params['nonce'] = nonce
+#         params = {} if params.nil?
+#         params['nonce'] = nonce
 
-        uri = URI.parse(['https://api.exmo.com/v1', method].join('/'))
+#         uri = URI.parse(['https://api.exmo.com/v1', method].join('/'))
 
-        post_data = URI.encode_www_form(params)
+#         post_data = URI.encode_www_form(params)
 
-        digest = OpenSSL::Digest.new('sha512')
-        sign = OpenSSL::HMAC.hexdigest(digest, SECRET, post_data)
+#         digest = OpenSSL::Digest.new('sha512')
+#         sign = OpenSSL::HMAC.hexdigest(digest, SECRET, post_data)
 
-        headers = {
-          'Sign' => sign,
-          'Key'  => KEY
-        }
+#         headers = {
+#           'Sign' => sign,
+#           'Key'  => KEY
+#         }
 
-        req = Net::HTTP::Post.new(uri.path, headers)
-        req.body = post_data
-        http = Net::HTTP.new(uri.host, uri.port)
-        http.use_ssl = true if uri.scheme == 'https'
-        response = http.request(req)
+#         req = Net::HTTP::Post.new(uri.path, headers)
+#         req.body = post_data
+#         http = Net::HTTP.new(uri.host, uri.port)
+#         http.use_ssl = true if uri.scheme == 'https'
+#         response = http.request(req)
 
-        unless response.code == '200'
-          raise Exmo::Error.new(__method__), ['http error:', response.code].join(' ')
-        end
+#         unless response.code == '200'
+#           raise Exmo::Error.new(__method__), ['http error:', response.code].join(' ')
+#         end
 
-        result = response.body.to_s
+#         result = response.body.to_s
 
-        unless result.is_a?(String) && valid_json?(result)
-          raise Exmo::Error.new(__method__), "Invalid json"
-        end
+#         unless result.is_a?(String) && valid_json?(result)
+#           raise Exmo::Error.new(__method__), "Invalid json"
+#         end
 
-        JSON.load result
-      end
+#         JSON.load result
+#       end
 
-      private
+#       private
 
-      def valid_json?(json)
-        JSON.parse(json)
-        true
-      rescue
-        false
-      end
+#       def valid_json?(json)
+#         JSON.parse(json)
+#         true
+#       rescue
+#         false
+#       end
 
-      def nonce
-        Time.now.strftime("%s%6N")
-      end
-    end
-  end
-end
+#       def nonce
+#         Time.now.strftime("%s%6N")
+#       end
+#     end
+#   end
+# end
 
 
 
-puts "%s" % Exmo::API.api_query('user_info').inspect
+# puts "%s" % Exmo::API.api_query('user_info').inspect
 
 
 

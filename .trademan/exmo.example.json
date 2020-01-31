@@ -1,0 +1,11 @@
+{
+  "BTC": [
+    {
+      "script": "exmo",
+      "currency": "BTC-AUSD",
+      "options": {
+        "arg1": "val1"
+      }
+    }
+  ]
+}

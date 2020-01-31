@@ -1,4 +1,4 @@
-# TreadeMan #
+# TradeMan #
 
 ## Description ##
 
