@@ -28,8 +28,12 @@ require 'net/https'
 
 VERSION = '0.1.0'
 
-CHECKS_DIR = "#{ENV['HOME']}/.bitbar_plugins/.trademan-plugins/"
-CONFIG_DIR = "#{ENV['HOME']}/.bitbar_plugins/.trademan/"
+def dev_mode?
+  ENV['ENV'] == 'dev'
+end
+
+CHECKS_DIR = dev_mode? ? '.trademan-plugins' : "#{ENV['HOME']}/.bitbar_plugins/.trademan-plugins/"
+CONFIG_DIR = dev_mode? ? '.trademan' : "#{ENV['HOME']}/.bitbar_plugins/.trademan/"
 
 README_URL = "https://github.com/evgenii/bitbar_trademan/blob/master/readme.md"
 
@@ -46,7 +50,11 @@ DARK_MODE=`defaults read -g AppleInterfaceStyle 2> /dev/null`.strip
 NO_DIM = " color=#{DARK_MODE == 'Dark' ? 'white' : 'black'} "
 
 def help
-  puts " | image=#{ICON_UNDETERMINED}"
+  if dev_mode?
+    puts " [!] | "
+  else
+    puts " | image=#{ICON_UNDETERMINED}"
+  end
   puts "---"
   puts "TradeMan v#{VERSION}|href=#{README_URL}"
   puts "More info...|href=#{README_URL}"
