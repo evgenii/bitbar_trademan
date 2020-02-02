@@ -16,25 +16,39 @@ class Exmo
 
     currency_key.map do |key|
       tiker = tikers[key]
+      description = []
+
       if tiker
-        title = key
-        description = tiker.map{ |k, v|  "#{k}: #{v}" }
-      else
-        title = 'NOT FOUND'
-        description = []
+        itemText = key
+        description += prepare_observe
+        description += prepare_tiker(tiker)
       end
 
       {
         itemImg: nil,
-        itemText: title,
+        itemText: itemText || 'NOT FOUND',
         itemHref: nil,
-        title: title,
+
+        title: nil,
         description: description
       }
     end
   end
 
   private
+
+  def prepare_observe
+    observe = opts(:observe)
+    return [] if observe.nil? || observe.size.zero?
+
+    ["Observers: "] + observe.map do |key, val|
+      " -- #{key}: #{val}"
+    end
+  end
+
+  def prepare_tiker(tiker)
+    tiker.map{ |k, v|  "#{k}: #{v}" }
+  end
 
   def api_query(action)
     uri = get_uri(action)
@@ -112,6 +126,6 @@ class Exmo
   end
 
   def opts(key)
-    options.dig(key)
+    options.dig(key.to_s)
   end
 end

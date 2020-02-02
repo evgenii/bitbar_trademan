@@ -4,7 +4,9 @@
       "script": "exmo",
       "currency": "BTC_USD",
       "options": {
-        "arg1": "val1"
+        "observe": {
+          "1.01.20": 9300
+        }
       }
     }
   ]
