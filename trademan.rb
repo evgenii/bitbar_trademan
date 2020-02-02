@@ -91,6 +91,8 @@ class Formatter
     _push_block_title(title)
 
     blocks.each do |block|
+      next if block.nil? || block.size.zero?
+
       _push_title(sym: block[:itemText], img: block[:itemImg], href: block[:itemHref])
       yield(block[:title], block[:description])
     end
@@ -188,7 +190,8 @@ class TradeMan
   #     ]
   #   }
   def run_script(name, currency, opts = {})
-    inst = Exmo.new(currency, opts).preform
+    inst = Object.const_get(camelize(name)).new(currency, opts)
+    inst.preform
   end
 
   def script_availabe?(script_name)
@@ -272,30 +275,18 @@ class TradeMan
 
     @dev_mode = ENV['ENV'] == 'development'
   end
+
+  def camelize(term, uppercase_first_letter = true)
+    string = term.to_s
+    if uppercase_first_letter
+      string = string.sub(/^[a-z\d]*/) { |match| match.capitalize }
+    else
+      string = string.sub(inflections.acronyms_camelize_regex) { |match| match.downcase }
+    end
+    string.gsub!(/(?:_|(\/))([a-z\d]*)/) { "#{$1}#{$2.capitalize}" }
+    string.gsub!("/".freeze, "::".freeze)
+    string
+  end
 end
 
 TradeMan.run
-
-# check_files.each do |check_file|
-#   check = JSON.parse(File.open(check_file).read)
-#   check.each do |title, script|
-#     @output += "#{$1.strip}| size=12\n"
-#   end
-
-#   check.each_line do |line|
-#     case line.strip
-#     when /^#-(.+)/
-#       @output += "#{$1.strip}| size=12\n"
-#     when '#-'
-#       @output += "---\n"
-#     when /^#.*/, ''
-#       true
-#     else
-#       item = line.split(":", 2)
-#       cmd = item[1].strip.split(" ", 2)
-#       output = `(#{plugin_path cmd[0]} #{cmd[1]}) 2>/dev/null`
-#       @status = parse_output item[0], output
-#     end
-#   end
-#   @output += "---\n"
-# end
