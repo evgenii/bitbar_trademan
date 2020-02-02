@@ -12,21 +12,35 @@ class Exmo
   end
 
   def preform
-    tikers = api_query(:tiker)
+    begin
+      tikers = api_query(:tiker)
+    rescue StandardError
+      return {
+        status: :connection_lost,
+        itemImg: nil,
+        itemText: "[!] Lost Coonection"
+      }
+
+    end
 
     currency_key.map do |key|
       tiker = tikers[key]
-      description = []
 
-      if tiker
-        itemText = key
-        description += prepare_observe
-        description += prepare_tiker(tiker)
-      end
+      return {
+        status: :not_found,
+        itemImg: nil,
+        itemText: key + 'NOT FOUND',
+      } unless tiker
+
+      itemText = key
+      description = []
+      description += prepare_observe
+      description += prepare_tiker(tiker)
 
       {
+        status: :ok,
         itemImg: nil,
-        itemText: itemText || 'NOT FOUND',
+        itemText: itemText || key + 'NOT FOUND',
         itemHref: nil,
 
         title: nil,

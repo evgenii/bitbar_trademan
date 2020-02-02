@@ -31,7 +31,7 @@ CHECKS_DIR = "#{ENV['HOME']}/.bitbar_plugins/.trademan-plugins/".freeze
 CONFIG_DIR = "#{ENV['HOME']}/.bitbar_plugins/.trademan/".freeze
 
 DARK_MODE=`defaults read -g AppleInterfaceStyle 2> /dev/null`.strip
-NO_DIM = " color=#{DARK_MODE == 'Dark' ? 'white' : 'black'} "
+NO_DIM = "#{DARK_MODE == 'Dark' ? 'white' : 'black'} "
 
 README_URL = "https://github.com/evgenii/bitbar_trademan/blob/master/readme.md".freeze
 
@@ -46,13 +46,13 @@ class Formatter
   # data = {
   #   "block Title": [
   #     {
-  #       itemImg: nil,
-  #       itemText: '[¥]',
-  #       itemHref: nil,
-  #       title: '',
-  #       description: [
-  #         '',
-  #         ''
+  #       status:                 - one of (nil means ok) :ok, :not_found, :connection_lost,
+  #       iconImg: nil,           - string with BASE64 encoded image
+  #       iconSym: '[√]',         - string with text to show
+  #       itemHref: 'https://...' - link to process on click
+  #       title: 'Some title',    -
+  #       description: [          -
+  #         'Message: value or something else'
   #       ]
   #     }
   #   ]
@@ -63,30 +63,27 @@ class Formatter
   end
 
   def to_bitbar
-    push_start(sym: '[¥]')
+    _push_title(**prepare_bar_title)
+
     data.each do |title, blocks|
-      push_block(title, blocks) do |_, description|
+      _push_block(title, blocks) do |_, description|
         description.each { |txt| _push_subblock(txt) }
       end
     end
-    push_footer
+    _push_footer
 
     output
   end
 
   private
 
-  def push_start(sym: nil, img: nil)
-    _push_title(sym: sym, img: img)
-  end
-
-  def push_footer
+  def _push_footer
     _push_divider
 
     output << "Refresh... | refresh=true"
   end
 
-  def push_block(title, blocks)
+  def _push_block(title, blocks)
     _push_divider
     _push_block_title(title)
 
@@ -94,11 +91,11 @@ class Formatter
       next if block.nil? || block.size.zero?
 
       _push_title(sym: block[:itemText], img: block[:itemImg], href: block[:itemHref])
-      yield(block[:title], block[:description])
+      yield(block[:title], block[:description]) if block.has_key?(:title) || block.has_key?(:description)
     end
   end
 
-  def _push_subblock(txt, color: 'white')
+  def _push_subblock(txt, color: NO_DIM)
     output << "-- #{txt} | color=#{color}\n"
   end
 
@@ -106,14 +103,23 @@ class Formatter
     "#{txt.strip}| size=12\n"
   end
 
-  def _push_title(sym: nil, img: nil, href: nil)
+  def _push_title(sym: nil, img: nil, href: nil, color: NO_DIM)
     raise ArgumentError, "None Symbol or Icon providing" if sym.nil? && img.nil?
 
-    output << " #{sym} | #{('image=' + img) if img } #{('href=' + href) if href}\n"
+    output << " #{sym} | #{('image=' + img) if img } #{('href=' + href) if href} #{ ('color=' + color) if color }\n"
   end
 
   def _push_divider
     output << "\n---\n"
+  end
+
+  def prepare_bar_title
+    statuses = data.values.flatten.map { |i| i.fetch(:status, nil) }.uniq
+    if statuses.include?(:connection_lost)
+      { sym: '[!]', color: 'red' }
+    else
+      { sym: '¥' }
+    end
   end
 end
 
@@ -180,15 +186,19 @@ class TradeMan
   end
 
   #
-  # should return:
+  # script perform should return a Hash with data
+  # @example:
   #   {
-  #     iconImg: nil,
-  #     iconSym: '[√]',
-  #     title: 'Some title',
-  #     description: [
+  #     status:                 - one of (nil means ok) :ok, :not_found, :connection_lost,
+  #     iconImg: nil,           - string with BASE64 encoded image
+  #     iconSym: '[√]',         - string with text to show
+  #     itemHref: 'https://...' - link to process on click
+  #     title: 'Some title',    -
+  #     description: [          -
   #       'Message: value or something else'
   #     ]
   #   }
+  #
   def run_script(name, currency, opts = {})
     inst = Object.const_get(camelize(name)).new(currency, opts)
     inst.preform
