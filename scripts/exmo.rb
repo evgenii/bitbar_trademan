@@ -3,6 +3,10 @@ require "json"
 
 class Exmo
   DEFAULT_STEP = 5 # ~5%
+  # ↑↓⇡⇞⇣⇟
+  UP_SYMBOL = '↑'
+  DOWN_SYMBOL = '↓'
+
   attr_reader :currency_key, :options
 
   #
@@ -55,6 +59,7 @@ class Exmo
       description = []
       description += prepare_observe(tiker)
       description += prepare_tiker(tiker)
+      description += prepare_history
 
       itemText = key
       status = :ok
@@ -62,10 +67,10 @@ class Exmo
       observe_state = prepare_observe_state(tiker).round(3)
       step = opts(:step) || DEFAULT_STEP
       if observe_state > 0.01 && observe_state > step
-        itemText = '↑ ' + itemText
+        itemText = "#{UP_SYMBOL} #{itemText}"
         status = :grow
       elsif observe_state < -0.01 && observe_state < -step
-        itemText = '↓ ' + itemText
+        itemText = "#{DOWN_SYMBOL} #{itemText}"
         status = :fall
       end
 
@@ -91,13 +96,22 @@ class Exmo
     ["Observers: "] + observe.map do |identy, order|
       state = '[|]'
       order_type, order_val = order.to_a[0]
-      # ↑↓⇡⇞⇣⇟
       prcent = calc_prcent(order_type, order_val, tiker)
       rnd = prcent.round(3).abs
-      state = "[#{prcent > 0.01 ? '↑' : '↓'}#{rnd}]"
+      state = "[#{prcent > 0.01 ? UP_SYMBOL : DOWN_SYMBOL}#{rnd}]"
       color = "| color=#{prcent > 0.01 ? 'green' : 'red'}" if rnd > step
 
       " -- #{state} #{identy} #{order_type}: #{order_val} #{color}"
+    end
+  end
+
+  def prepare_history
+    history = opts(:history)
+    return [] if history.nil? || history.size.zero?
+
+    ["History: "] + history.map do |identy, order|
+      order_type, order_val = order.to_a[0]
+      " -- #{identy} #{order_type}: #{order_val}"
     end
   end
 
