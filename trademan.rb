@@ -118,7 +118,21 @@ class Formatter
     if statuses.include?(:connection_lost)
       { sym: '[!]', color: 'red' }
     else
-      { sym: '¥' }
+      color = 0
+      sym = ['¥'] + statuses.map do |s|
+        if s == :grow
+          color += 1
+          '↑'
+        elsif s == :fall
+          color -= 1
+          '↓'
+        end
+      end
+
+      {
+        sym: sym.join,
+        color: color.zero? ? 'white' : (color > 0 ? 'green' : 'red')
+      }
     end
   end
 end

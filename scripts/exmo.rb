@@ -2,8 +2,28 @@ require 'net/https'
 require "json"
 
 class Exmo
+  DEFAULT_STEP = 5 # ~5%
   attr_reader :currency_key, :options
 
+  #
+  # @param currency_key [String]
+  # @param options = {} [Hash] [description]
+  #   @option step [Integer, Float] options [default: DEFAULT_STEP]
+  #   @option observe [Hash] options
+  #     @option identity [Hash] observe
+  #       @option buy [Integer, Float] identity
+  #       @option sell [Integer, Float] identity
+  #
+  #  @example:
+  #    "options": {
+  #      "step": 0.02,
+  #      "observe": {
+  #        "1.01.20": {
+  #          "buy": 9300
+  #        }
+  #      }
+  #    }
+  #
   def initialize(currency_key, options = {})
     raise ArgumentError, "currency_key should be defined" if currency_key.nil?
     @currency_key = currency_key.is_a?(Array) ? currency_key : [currency_key]
@@ -32,16 +52,28 @@ class Exmo
         itemText: key + 'NOT FOUND',
       } unless tiker
 
-      itemText = key
       description = []
-      description += prepare_observe
+      description += prepare_observe(tiker)
       description += prepare_tiker(tiker)
 
+      itemText = key
+      status = :ok
+
+      observe_state = prepare_observe_state(tiker).round(3)
+      step = opts(:step) || DEFAULT_STEP
+      if observe_state > 0.01 && observe_state > step
+        itemText = '↑ ' + itemText
+        status = :grow
+      elsif observe_state < -0.01 && observe_state < -step
+        itemText = '↓ ' + itemText
+        status = :fall
+      end
+
       {
-        status: :ok,
+        status: status,
         itemImg: nil,
-        itemText: itemText || key + 'NOT FOUND',
-        itemHref: nil,
+        itemText: itemText,
+        itemHref: "https://exmo.com/uk/trade/#{key}",
 
         title: nil,
         description: description
@@ -51,17 +83,57 @@ class Exmo
 
   private
 
-  def prepare_observe
+  def prepare_observe(tiker)
     observe = opts(:observe)
     return [] if observe.nil? || observe.size.zero?
+    step = opts(:step) || DEFAULT_STEP # step from user options or 5%
 
-    ["Observers: "] + observe.map do |key, val|
-      " -- #{key}: #{val}"
+    ["Observers: "] + observe.map do |identy, order|
+      state = '[|]'
+      order_type, order_val = order.to_a[0]
+      # ↑↓⇡⇞⇣⇟
+      prcent = calc_prcent(order_type, order_val, tiker)
+      rnd = prcent.round(3).abs
+      state = "[#{prcent > 0.01 ? '↑' : '↓'}#{rnd}]"
+      color = "| color=#{prcent > 0.01 ? 'green' : 'red'}" if rnd > step
+
+      " -- #{state} #{identy} #{order_type}: #{order_val} #{color}"
+    end
+  end
+
+  def prepare_observe_state(tiker)
+    observe = opts(:observe)
+    return 0 if observe.nil? || observe.size.zero?
+
+    observe.map do |_, order|
+      order_type, order_val = order.to_a[0]
+      calc_prcent(order_type, order_val, tiker)
+    end.reduce(0, :+)
+  end
+
+  def calc_prcent(order_type, order_val, tiker)
+    if order_type == 'buy'
+      price = tiker['sell_price'].to_f
+
+      (price - order_val) / price * 100
+    elsif order_type == 'sell'
+      price = tiker['buy_price'].to_f
+
+      (order_val - price) / order_val * 100
+    else
+      raise ArgumentError, "Wrong type argument, can be only buy or sell!"
     end
   end
 
   def prepare_tiker(tiker)
-    tiker.map{ |k, v|  "#{k}: #{v}" }
+    ignore_keys = %w[vol vol_curr]
+    ["Tikers: "] + tiker.map do |k, v|
+      next if ignore_keys.include?(k)
+
+      v = Time.at(v) if k == 'updated'
+
+      "-- #{k}: #{v}"
+    end.compact
   end
 
   def api_query(action)
