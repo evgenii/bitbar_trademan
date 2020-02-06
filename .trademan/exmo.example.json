@@ -4,7 +4,7 @@
       "script": "exmo",
       "currency": "BTC_USD",
       "options": {
-        "step": 2,
+        "step": 1,
         "observe": {
           // "1.01.20": {
           //   "buy": 9300
@@ -12,13 +12,10 @@
           // }
           "03.02/0.05 BTC": {
             // "buy": 9300
-            "sell": 9360
+            "buy": 9360
           }
         },
         "history":{
-          // "1.01.20": {
-          //   "buy": 8900
-          // }
         }
       }
     }

@@ -13,6 +13,8 @@ This plugin grab data from trade servers.
         + json
         + fileutils
         + open-uri
+    Use
+    * https://cryptofont.com/
 
 ## How to use ##
 

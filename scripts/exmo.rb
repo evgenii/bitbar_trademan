@@ -3,9 +3,13 @@ require "json"
 
 class Exmo
   DEFAULT_STEP = 5 # ~5%
-  # ↑↓⇡⇞⇣⇟
-  UP_SYMBOL = '↑'
-  DOWN_SYMBOL = '↓'
+  # ↑↓⇡⇣⇞⇟
+  UP_SYMBOL = '↑'.freeze
+  DOWN_SYMBOL = '↓'.freeze
+  SYMBOLS_MAP = {
+    'BTC' => 'B',
+    'USDT' => '$'
+  }
 
   attr_reader :currency_key, :options
 
@@ -63,19 +67,31 @@ class Exmo
 
       itemText = key
       status = :ok
+      on_top = false
 
-      observe_state = prepare_observe_state(tiker).round(3)
-      step = opts(:step) || DEFAULT_STEP
-      if observe_state > 0.01 && observe_state > step
-        itemText = "#{UP_SYMBOL} #{itemText}"
-        status = :grow
-      elsif observe_state < -0.01 && observe_state < -step
-        itemText = "#{DOWN_SYMBOL} #{itemText}"
-        status = :fall
+      last_trade = tiker['last_trade'].to_f
+      observe_state = prepare_observe_state(tiker)
+      unless observe_state.nil?
+        observe_state = observe_state.round(3)
+        step = opts(:step) || DEFAULT_STEP
+        if observe_state > 0.01
+          itemText = "#{UP_SYMBOL}[#{observe_state}] #{itemText}"
+          on_top = true if high = tiker['high'].to_f; (high - high * 0.005) < last_trade
+          status = :grow if observe_state > step
+        elsif observe_state < -0.01
+          itemText = "#{DOWN_SYMBOL}[#{observe_state}] #{itemText}"
+          on_top = true if low = tiker['low'].to_f; (low + low * 0.005) > last_trade
+          status = :fall if observe_state < -step
+        end
       end
 
       {
+        on_top: on_top,
         status: status,
+        value: observe_state,
+        symbol: get_symbol(key),
+        last_trade: last_trade,
+
         itemImg: nil,
         itemText: itemText,
         itemHref: "https://exmo.com/uk/trade/#{key}",
@@ -117,12 +133,12 @@ class Exmo
 
   def prepare_observe_state(tiker)
     observe = opts(:observe)
-    return 0 if observe.nil? || observe.size.zero?
+    return nil if observe.nil? || observe.size.zero?
 
     observe.map do |_, order|
       order_type, order_val = order.to_a[0]
       calc_prcent(order_type, order_val, tiker)
-    end.reduce(0, :+)
+    end.reduce(0, :+) / observe.size
   end
 
   def calc_prcent(order_type, order_val, tiker)
@@ -223,6 +239,11 @@ class Exmo
         method: :get
       }
     }
+  end
+
+  def get_symbol(currency)
+    from, to = currency.split('_')
+    SYMBOLS_MAP[from]
   end
 
   def opts(key)
