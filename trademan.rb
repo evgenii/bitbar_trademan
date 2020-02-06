@@ -17,7 +17,7 @@
 # ...
 #
 # Missing/Not yet implemented:
-# - ...
+# - add currency from https://rapidapi.com/dontgiveafish/api/hryvna-today
 
 require 'json'
 require 'fileutils'

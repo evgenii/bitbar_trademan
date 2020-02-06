@@ -76,11 +76,13 @@ class Exmo
         step = opts(:step) || DEFAULT_STEP
         if observe_state > 0.01
           itemText = "#{UP_SYMBOL}[#{observe_state}] #{itemText}"
-          on_top = true if high = tiker['high'].to_f; (high - high * 0.005) < last_trade
+          high_price = tiker['high'].to_f;
+          on_top = true if (high_price - high_price * 0.005) < last_trade
           status = :grow if observe_state > step
         elsif observe_state < -0.01
           itemText = "#{DOWN_SYMBOL}[#{observe_state}] #{itemText}"
-          on_top = true if low = tiker['low'].to_f; (low + low * 0.005) > last_trade
+          low_price = tiker['low'].to_f
+          on_top = true if (low_price + low_price * 0.005) > last_trade
           status = :fall if observe_state < -step
         end
       end
