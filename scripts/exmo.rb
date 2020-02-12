@@ -2,7 +2,7 @@ require 'net/https'
 require "json"
 
 class Exmo
-  DEFAULT_STEP = 5 # ~5%
+  DEFAULT_STEP = 2 # ~2%
   # ↑↓⇡⇣⇞⇟
   UP_SYMBOL = '↑'.freeze
   DOWN_SYMBOL = '↓'.freeze
@@ -12,10 +12,10 @@ class Exmo
     'USDT' => '$'
   }
 
-  attr_reader :currency_key, :options
+  attr_reader :currency_keys, :options
 
   #
-  # @param currency_key [String]
+  # @param currency_keys [String]
   # @param options = {} [Hash] [description]
   #   @option step [Integer, Float] options [default: DEFAULT_STEP]
   #   @option observe [Hash] options
@@ -30,12 +30,23 @@ class Exmo
   #        "1.01.20": {
   #          "buy": 9300
   #        }
+  #      },
+  #      "hotkeys": {
+  #        "BUY 0.0001 BTC": {
+  #          "action": "market_buy",
+  #          "currency": "BTC_USD",
+  #          "value": 0.0001
+  #        }
+  #      },
+  #      "credentials": {
+  #        "key": "__EXMO_KEY_HERE__",
+  #        "secret": "__EXMO_SECRET_HERE__"
   #      }
   #    }
   #
-  def initialize(currency_key, options = {})
-    raise ArgumentError, "currency_key should be defined" if currency_key.nil?
-    @currency_key = currency_key.is_a?(Array) ? currency_key : [currency_key]
+  def initialize(currency_keys, options = {})
+    raise ArgumentError, "currency_keys should be defined" if currency_keys.nil?
+    @currency_keys = currency_keys.is_a?(Array) ? currency_keys : [currency_keys]
 
     @options = options
   end
@@ -52,13 +63,13 @@ class Exmo
 
     end
 
-    currency_key.map do |key|
-      ticker = tickers[key]
+    currency_keys.map do |currency_key|
+      ticker = tickers[currency_key]
 
       return {
         status: :not_found,
         itemImg: nil,
-        itemText: key + 'NOT FOUND',
+        itemText: currency_key + 'NOT FOUND',
       } unless ticker
 
       description = []
@@ -66,7 +77,7 @@ class Exmo
       description += prepare_ticker(ticker)
       description += prepare_history
 
-      itemText = key
+      itemText = currency_key
       status = :ok
       on_top = false
 
@@ -92,21 +103,52 @@ class Exmo
         on_top: on_top,
         status: status,
         value: observe_state,
-        symbol: get_symbol(key),
+        symbol: get_symbol(currency_key),
         last_trade: last_trade,
 
         itemImg: nil,
         itemText: itemText,
-        itemHref: "https://exmo.com/uk/trade/#{key}",
+        itemHref: "https://exmo.com/uk/trade/#{currency_key}",
 
         title: nil,
         description: description,
-        hotkeys: {}
+        hotkeys: build_hotkeys(currency_key)
       }
     end
   end
 
   private
+
+  def build_hotkeys(currency)
+    return {} if currency.nil? || currency.empty?
+
+    hotkeys = opts(:hotkeys)
+    credentials = opts(:credentials)
+    return {} if hotkeys.nil? || hotkeys.empty?
+    return {} if credentials.nil? || credentials.empty?
+
+    creds = "--credential_key=#{credentials['key']} --credential_secret=#{credentials['secret']}"
+    script_path = File.expand_path('./', __FILE__)
+    currency = "--currency=#{currency}"
+
+    result = hotkeys.each_with_object({}) do |(name, params), memo|
+      if params['cmd']
+        command = params['cmd']
+        command.gsub!('__FILE_DIR__', File.expand_path('../', __FILE__))
+
+        memo[name] = command
+      elsif params['action'] && params['value']
+        action = "--action=#{params['action']}"
+        value = "--value=#{params['value']}"
+
+        memo[name] = "ruby #{script_path} #{action} #{currency} #{value} #{creds}"
+      end
+    end
+
+    result['Show User Info'] = "ruby #{script_path} --action=user_info #{currency} #{creds}"
+
+    result
+  end
 
   def prepare_observe(ticker)
     observe = opts(:observe)
@@ -263,6 +305,7 @@ class ExmoTradeScript
       match = /^-?-(?<key>.*?)(=(?<value>.*)|)$/.match(arg)
       memo[match[:key]] = match[:value] if match
     end
+    # return p opts
 
     inst = self.new(opts)
     inst.perform!
@@ -303,9 +346,11 @@ class ExmoTradeScript
       when 'market_buy'
         # convert to destination (USD)
         convert_to_destination_currency(value, ticker)
+        # @todo: update obcervers in config file
       when 'market_sell'
         # convert to source (BTC)
         convert_to_source_currency(value, ticker)
+        # @todo: update obcervers in config file
       end
 
     order_params = {
@@ -319,20 +364,21 @@ class ExmoTradeScript
       raise StandardError, 'You cannot create order because of: ' + violations.join('; ')
     end
 
-    p "You will create order: #{order_params.inspect}"
-    p "  current prices: [sell: #{ticker['sell_price']}, buy: #{ticker['buy_price']} \n ----"
+    puts "You will create order: #{order_params.inspect}"
+    puts "  current prices: [sell: #{ticker['sell_price']}, buy: #{ticker['buy_price']} \n ----"
     order = api_query('order_create', order_params)
     if order['result']
-      p 'Creation SUCCESS, see order info:'
-      p api_query('order_trades', order_id: order['order_id'])
+      puts 'Creation SUCCESS, see order info:'
+      puts api_query('order_trades', order_id: order['order_id'])
     else
-      p "Creating FAILED, errors: #{order['error']}"
+      puts "Creating FAILED, errors: #{order['error']}"
     end
   end
 
   private
 
   def show_user_info(user)
+    puts "---- \n"
     if currency.nil?
       puts(user.inspect)
     else
@@ -377,15 +423,15 @@ class ExmoTradeScript
   #   0.0001 BTC => BTC = 0.0001
   #   35 USD => BTC = 35 * sell_price
   #
-  # @param val [String] example: "0.001 BTC" or "35 USD"
+  # @param val [String] example: "0.001 BTC" or "35USD"
   #
   # @return [Float] val in source currency
   def convert_to_source_currency(val, ticker)
     source, destination = currency.split('_')
-    v, crrncy = val.split(' ')
-    case crrncy
-    when source then v.to_f
-    when destination then v.to_f * ticker['sell_price'].to_f
+    matcher = parse_value(val)
+    case matcher[:type]
+    when source then matcher[:amount].to_f
+    when destination then matcher[:amount].to_f * ticker['sell_price'].to_f
     else
       raise ArgumentError, "Wrong currenty in value"
     end
@@ -402,13 +448,17 @@ class ExmoTradeScript
   # @return [Float] val in destination currency
   def convert_to_destination_currency(val, ticker)
     source, destination = currency.split('_')
-    v, crrncy = val.split(' ')
-    case crrncy
-    when source then v.to_f * ticker['buy_price'].to_f
-    when destination then v.to_f
+    matcher = parse_value(val)
+    case matcher[:type]
+    when source then matcher[:amount].to_f * ticker['buy_price'].to_f
+    when destination then matcher[:amount].to_f
     else
       raise ArgumentError, "Wrong currenty in value"
     end
+  end
+
+  def parse_value(val)
+    /^(?<amount>\d*(\.\d*)?)\s*(?<type>[A-Z]+)$/.match(val)
   end
 
   def initial_options_valid?(options)
@@ -467,7 +517,6 @@ class ExmoTradeScript
   def opts(key, default = nil)
     @options.fetch(key.to_s, default)
   end
-
 end
 
 ExmoTradeScript.run(ARGV) if ARGV.any?

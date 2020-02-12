@@ -75,8 +75,11 @@ class Formatter
       _push_block(title, blocks) do |_, description|
         description.each { |txt| _push_subblock(txt) }
       end
+      blocks.each do |param|
+        _add_hotkeys(param[:hotkeys]) unless param[:hotkeys].nil? || param[:hotkeys].empty?
+      end
     end
-    _add_hotkeys(data[:hotkeys]) unless data[:hotkeys].nil? || data[:hotkeys].empty?
+
     _push_footer
 
     output

@@ -6,9 +6,8 @@
       "options": {
         "hotkeys": {
           "BUY 0.0001 BTC": {
-            "action": "market_buy",
-            "currency": "BTC_USD",
-            "value": 0.0001
+            "action": "market_buy",     // valid: market_buy, market_sell, user_info
+            "value": "0.0001 BTC"       // "<value> <currency>" example "0.001 BTC" or "1.34 USD"
           }
         },
         "credentials": {
