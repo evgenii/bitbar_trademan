@@ -76,6 +76,7 @@ class Formatter
         description.each { |txt| _push_subblock(txt) }
       end
     end
+    _add_hotkeys(data[:hotkeys]) unless data[:hotkeys].nil? || data[:hotkeys].empty?
     _push_footer
 
     output
@@ -109,10 +110,28 @@ class Formatter
     "#{txt.strip}| size=12\n"
   end
 
-  def _push_title(sym: nil, img: nil, href: nil, color: NO_DIM)
+  def _push_title(sym: nil, img: nil, href: nil, bash: {}, color: NO_DIM)
     raise ArgumentError, "None Symbol or Icon providing" if sym.nil? && img.nil?
 
-    output << " #{sym} | #{('image=' + img) if img } #{('href=' + href) if href} #{ ('color=' + color) if color }\n"
+    options = []
+    options << ('image=' + img) if img
+    options << ('href=' + href) if href
+    options << bash.map { |k, c| "#{k}='#{c}'" }.join(' ') unless bash.empty?
+    options << ('color=' + color) if color
+
+    # line = '''osascript -e 'Tell application "System Events" to display dialog "How many minutes of freeing yourself from the world? or [hh:]mm:ss " default answer ""' -e 'text returned of result' 2>/dev/null '''
+    # a_time = os.popen(line).read().strip()
+
+
+    output << " #{sym} | #{options.join(' ')}\n"
+  end
+
+  def _add_hotkeys(hotkeys)
+    _push_divider
+
+    hotkeys.map do |name, cmd|
+      _push_title(sym: name, bash: { bash: cmd, terminal: true, trim: false })
+    end
   end
 
   def _push_divider
@@ -121,6 +140,8 @@ class Formatter
 
   def prepare_bar_title
     flatten_data = data.values.flatten
+    flatten_data = [flatten_data] unless flatten_data.is_a?(Array)
+
     statuses = flatten_data.map { |i| i.fetch(:status, nil) }.uniq
     if statuses.include?(:connection_lost)
       { sym: '[!]', color: 'red' }
@@ -288,7 +309,7 @@ class TradeMan
     return @config_files if defined?(@config_files)
     config_dir = dev_mode? ? '.trademan' : CONFIG_DIR
 
-    @check_files = Dir["#{config_dir}/*"]
+    @check_files = Dir["#{config_dir}/*.json"]
   end
 
   def help

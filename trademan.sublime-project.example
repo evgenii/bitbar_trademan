@@ -14,25 +14,47 @@
       "shell": true,
       "working_dir": "$project_path",
       "cmd": [
-        "ruby ./traideman.rb"
+        "ruby ./trademan.rb"
       ],
+      "env":{
+        "EXMO_API_KEY": "__EXMO_KEY__",
+        "EXMO_API_SECRET": "__EXMO_SECRET__"
+      },
       "variants": [
         {
-          "name": "Exec",
+          "name": "Exec TradeMan",
           "cmd": [
-            "ENV=dev ruby ./traideman.rb"
+            "ENV=development ruby ./trademan.rb"
           ]
         },
         {
-          "name": "Copy to HOME BitBar",
+          "name": "Install TradeMan",
           "cmd": [
-            "cp -f ./traideman.rb ~/.bitbar_plugins/traideman.rb"
+            "mkdir -pv ~/.bitbar_plugins/.trademan ~/.bitbar_plugins/.trademan-plugins && cp -f ./scripts/* ~/.bitbar_plugins/.trademan-plugins && cp -f ./.trademan/* ~/.bitbar_plugins/.trademan && cp -f ./trademan.rb ~/.bitbar_plugins/trademan.rb"
           ]
         },
         {
-          "name": "Remove from HOME BitBar",
+          "name": "Uninstall TradeMan",
           "cmd": [
-            "rm ~/.bitbar_plugins/traideman.rb"
+            "rm ~/.bitbar_plugins/trademan.rb && rm -rf ~/.bitbar_plugins/.trademan/*"
+          ]
+        },
+        {
+          "name": "Exec BUY 0.0001 BTC with exmo script",
+          "cmd": [
+            "ruby ./scripts/exmo.rb --action=market_buy --currency=BTC_USD --value='0.0001 BTC' --credential_key=\\$EXMO_API_KEY --credential_secret=\\$EXMO_API_SECRET"
+          ]
+        },
+        {
+          "name": "Exec SELL 0.0001 BTC with exmo script",
+          "cmd": [
+            "ruby ./scripts/exmo.rb --action=market_sell --currency=BTC_USD --value='0.0001 BTC' --credential_key=\\$EXMO_API_KEY --credential_secret=\\$EXMO_API_SECRET"
+          ]
+        },
+        {
+          "name": "Exec USER_INFO with exmo script",
+          "cmd": [
+            "ruby ./scripts/exmo.rb --action=user_info --currency=BTC_USD --credential_key=\\$EXMO_API_KEY --credential_secret=\\$EXMO_API_SECRET"
           ]
         },
         {
