@@ -344,8 +344,8 @@ class ExmoTradeScript
 
     quantity = case action
       when 'market_buy'
-        # convert to destination (USD)
-        convert_to_destination_currency(value, ticker)
+        # convert to source (BTC)
+        convert_to_source_currency(value, ticker)
         # @todo: update obcervers in config file
       when 'market_sell'
         # convert to source (BTC)
@@ -437,25 +437,26 @@ class ExmoTradeScript
     end
   end
 
-  #
-  # Should convert value with currenty to a source currency
-  # if BTC_USD:
-  #   0.0001 BTC => USD = 0.0001 * buy_price
-  #   35 USD => USD = 35
-  #
-  # @param val [String] example: "0.001 BTC" or "35 USD"
-  #
-  # @return [Float] val in destination currency
-  def convert_to_destination_currency(val, ticker)
-    source, destination = currency.split('_')
-    matcher = parse_value(val)
-    case matcher[:type]
-    when source then matcher[:amount].to_f * ticker['buy_price'].to_f
-    when destination then matcher[:amount].to_f
-    else
-      raise ArgumentError, "Wrong currenty in value"
-    end
-  end
+  # @todo: Not needed remove me!
+  # #
+  # # Should convert value with currenty to a source currency
+  # # if BTC_USD:
+  # #   0.0001 BTC => USD = 0.0001 * buy_price
+  # #   35 USD => USD = 35
+  # #
+  # # @param val [String] example: "0.001 BTC" or "35 USD"
+  # #
+  # # @return [Float] val in destination currency
+  # def convert_to_destination_currency(val, ticker)
+  #   source, destination = currency.split('_')
+  #   matcher = parse_value(val)
+  #   case matcher[:type]
+  #   when source then matcher[:amount].to_f * ticker['buy_price'].to_f
+  #   when destination then matcher[:amount].to_f
+  #   else
+  #     raise ArgumentError, "Wrong currenty in value"
+  #   end
+  # end
 
   def parse_value(val)
     /^(?<amount>\d*(\.\d*)?)\s*(?<type>[A-Z]+)$/.match(val)
