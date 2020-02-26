@@ -15,21 +15,24 @@ class Exmo
   attr_reader :currency_keys, :options
 
   #
-  # @param currency_keys [String]
   # @param options = {} [Hash] [description]
   #   @option step [Integer, Float] options [default: DEFAULT_STEP]
   #   @option observe [Hash] options
-  #     @option identity [Hash] observe
-  #       @option buy [Integer, Float] identity
-  #       @option sell [Integer, Float] identity
+  #     @option currenty [Array] observe
+  #       @option identity [Hash] currenty
+  #         @option buy [Integer, Float] identity
+  #         @option sell [Integer, Float] identity
   #
   #  @example:
   #    "options": {
   #      "step": 0.02,
   #      "observe": {
-  #        "1.01.20": {
-  #          "buy": 9300
-  #        }
+  #        "BTC_USD": [
+  #          {"0.01 BTC": { "buy": 9300 }}
+  #        ],
+  #        "BTC_EUR": [
+  #          {"Text": { "buy": 8300 }}
+  #        ]
   #      },
   #      "hotkeys": {
   #        "BUY 0.0001 BTC": {
@@ -44,10 +47,7 @@ class Exmo
   #      }
   #    }
   #
-  def initialize(currency_keys, options = {})
-    raise ArgumentError, "currency_keys should be defined" if currency_keys.nil?
-    @currency_keys = currency_keys.is_a?(Array) ? currency_keys : [currency_keys]
-
+  def initialize(options = {})
     @options = options
   end
 
@@ -62,8 +62,8 @@ class Exmo
       }
 
     end
-
-    currency_keys.map do |currency_key|
+    currency_keys = opts(:observe).keys
+    currency_keys.each_with_index.map do |currency_key, idx|
       ticker = tickers[currency_key]
 
       return {
@@ -73,16 +73,16 @@ class Exmo
       } unless ticker
 
       description = []
-      description += prepare_observe(ticker)
+      description += prepare_observe(currency_key, ticker)
       description += prepare_ticker(ticker)
-      description += prepare_history
+      description += prepare_history(currency_key)
 
       itemText = currency_key
       status = :ok
       on_top = false
 
       last_trade = ticker['last_trade'].to_f
-      observe_state = prepare_observe_state(ticker)
+      observe_state = prepare_observe_state(currency_key, ticker)
       unless observe_state.nil?
         observe_state = observe_state.round(3)
         step = opts(:step) || DEFAULT_STEP
@@ -99,7 +99,7 @@ class Exmo
         end
       end
 
-      {
+      res = {
         on_top: on_top,
         status: status,
         value: observe_state,
@@ -111,17 +111,16 @@ class Exmo
         itemHref: "https://exmo.com/uk/trade/#{currency_key}",
 
         title: nil,
-        description: description,
-        hotkeys: build_hotkeys(currency_key)
+        description: description
       }
+      res[:hotkeys] = build_hotkeys if idx.zero?
+      res
     end
   end
 
   private
 
-  def build_hotkeys(currency)
-    return {} if currency.nil? || currency.empty?
-
+  def build_hotkeys
     hotkeys = opts(:hotkeys)
     credentials = opts(:credentials)
     return {} if hotkeys.nil? || hotkeys.empty?
@@ -129,7 +128,6 @@ class Exmo
 
     creds = "--credential_key=#{credentials['key']} --credential_secret=#{credentials['secret']}"
     script_path = File.expand_path('./', __FILE__)
-    currency = "--currency=#{currency}"
 
     result = hotkeys.each_with_object({}) do |(name, params), memo|
       if params['cmd']
@@ -138,6 +136,7 @@ class Exmo
 
         memo[name] = command
       elsif params['action'] && params['value']
+        currency = "--currency=#{params['currency']}"
         action = "--action=#{params['action']}"
         value = "--value=#{params['value']}"
 
@@ -145,53 +144,62 @@ class Exmo
       end
     end
 
-    result['Show User Info'] = "ruby #{script_path} --action=user_info #{currency} #{creds}"
+    currencies = hotkeys.map { |_, params| params['currency'] }
+    currencies += opts(:observe).keys
+    currencies = currencies.flatten.compact.uniq.join(',')
+    result['Show User Info'] = "ruby #{script_path} --action=user_info --currency=#{currencies} #{creds}"
 
     result
   end
 
-  def prepare_observe(ticker)
-    observe = opts(:observe)
-    return [] if observe.nil? || observe.size.zero?
+  def prepare_observe(currency_key, ticker)
+    observes = opts(:observe)[currency_key]
+    return [] if observes.size.zero?
     step = opts(:step) || DEFAULT_STEP # step from user options or 5%
 
-    ["Observers: "] + observe.map do |identy, order|
-      state = '[|]'
-      order_type, order_val = order.to_a[0]
-      prcent = calc_prcent(order_type, order_val, ticker)
-      rnd = prcent.round(3).abs
-      state = "[#{prcent > 0.01 ? UP_SYMBOL : DOWN_SYMBOL}#{rnd}]"
-      color = "| color=#{prcent > 0.01 ? 'green' : 'red'}" if rnd > step
+    ["Observers: "] + observes.map do |observe|
+      observe.map do |identy, order|
+        state = '[|]'
+        order_type, order_val = order.to_a[0]
+        prcent = calc_prcent(order_type, order_val, ticker)
+        rnd = prcent.round(3).abs
+        state = "[#{prcent > 0.01 ? UP_SYMBOL : DOWN_SYMBOL}#{rnd}]"
+        color = "| color=#{prcent > 0.01 ? 'green' : 'red'}" if rnd > step
 
-      " -- #{state} #{identy} #{order_type}: #{order_val} #{color}"
-    end
+        " -- #{state} #{identy} #{order_type}: #{order_val} #{color}"
+      end
+    end.flatten
   end
 
-  def prepare_history
-    history = opts(:history)
-    return [] if history.nil? || history.size.zero?
+  def prepare_history(currency_key)
+    history_list = opts(:history)[currency_key]
+    return [] if history_list.nil? || history_list.size.zero?
 
-    ["History: "] + history.map do |identy, order|
-      order_type, order_val = order.to_a[0]
-      " -- #{identy} #{order_type}: #{order_val}"
-    end
+    ["History: "] + history_list.map do |history|
+      history.map do |identy, order|
+        order_type, order_val = order.to_a[0]
+        " -- #{identy} #{order_type}: #{order_val}"
+      end
+    end.flatten
   end
 
-  def prepare_observe_state(ticker)
-    observe = opts(:observe)
-    return nil if observe.nil? || observe.size.zero?
+  def prepare_observe_state(currency_key, ticker)
+    observes = opts(:observe)[currency_key]
+    return nil if observes.size.zero?
 
-    observe.map do |_, order|
-      order_type, order_val = order.to_a[0]
-      calc_prcent(order_type, order_val, ticker)
-    end.reduce(0, :+) / observe.size
+    observes.map do |observe|
+      observe.map do |_, order|
+        order_type, order_val = order.to_a[0]
+        calc_prcent(order_type, order_val, ticker)
+      end
+    end.flatten.min
   end
 
   def calc_prcent(order_type, order_val, ticker)
     if order_type == 'buy'
       price = ticker['sell_price'].to_f
 
-      (price - order_val) / price * 100
+      (price - order_val) / order_val * 100
     elsif order_type == 'sell'
       price = ticker['buy_price'].to_f
 
@@ -316,7 +324,7 @@ class ExmoTradeScript
   #
   # @param options [Hash]
   #   @option action [String] options (required) - one of %i[market_buy market_sell] or 'user_info'
-  #   @option currency [String] options (required) - example: "BTC_USD"
+  #   @option currency [String] options (required) - example: "BTC_USD,BTC_EUR"
   #   @option value [Float] options (required) -  example: "0.0001 BTC" or "35 USD"
   #   @option credential_key [String] options (required)
   #   @option credential_secret [String] options (required)
@@ -382,7 +390,7 @@ class ExmoTradeScript
     if currency.nil?
       puts(user.inspect)
     else
-      currencies = currency.split('_')
+      currencies = currency.split(',').map { |c| c.split('_') }.flatten.compact.uniq
       filtered_data = user
       filtered_data['balances'] = user['balances'].select{ |k,v| currencies.include?(k) }
       filtered_data['reserved'] = user['reserved'].select{ |k,v| currencies.include?(k) }

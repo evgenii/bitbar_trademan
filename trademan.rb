@@ -150,12 +150,12 @@ class Formatter
       { sym: '[!]', color: 'red' }
     else
       color = 0
-      sym = [MAIN_SYMBOL] + flatten_data.map do |i|
+      sym = [MAIN_SYMBOL] + [flatten_data.first].map do |i|
         on_top = i.fetch(:on_top, nil)
         status = i.fetch(:status, nil)
         symbol = i.fetch(:symbol, nil)
         value = i.fetch(:value, nil) || i.fetch(:last_trade, nil)
-        value = value.round(2) unless value.nil?
+        value = value.round(3) unless value.nil?
 
         if status == :grow
           color += 1
@@ -235,7 +235,7 @@ class TradeMan
     script_name = script_opts['script']
     return unless script_availabe?(script_name)
 
-    run_script(script_name, script_opts['currency'], script_opts['options'])
+    run_script(script_name, script_opts['options'])
   end
 
   #
@@ -252,8 +252,8 @@ class TradeMan
   #     ]
   #   }
   #
-  def run_script(name, currency, opts = {})
-    inst = Object.const_get(camelize(name)).new(currency, opts)
+  def run_script(name, opts = {})
+    inst = Object.const_get(camelize(name)).new(opts)
     inst.preform
   end
 

@@ -1,29 +1,32 @@
 {
-  "BTC": [
+  "-- exmo.com --": [
     {
       "script": "exmo",
-      "currency": "BTC_USD",
       "options": {
         "hotkeys": {
-          "BUY 0.0001 BTC": {
+          "BUY 0.0001 BTC": {           // hotkey name
+            "currency": "BTC_USD",      // currenty key
             "action": "market_buy",     // valid: market_buy, market_sell, user_info
-            "value": "0.0001 BTC"       // "<value> <currency>" example "0.001 BTC" or "1.34 USD"
+            "value": "0.0001BTC"       // "<value><currency>" example "0.001BTC" or "1.34 USD"
           }
         },
         "credentials": {
           "key": "__EXMO_KEY_HERE__",
           "secret": "__EXMO_SECRET_HERE__"
         },
-        "step": 1,
+        "step": 0.5,
         "observe": {
-          "03.02/0.05 BTC": {
-            "buy": 9360
-          }
+          "BTC_USD": [
+            { "03.02/0.05 BTC": {"buy": 9360 } }
+          ],
+          "BTC_EUR": [
+            { "0.01 BTC": {"sell": 8360 } }
+          ]
         },
         "history": {
-          "01.02/0.05 BTC": {
-            "sell": 9802
-          }
+          "BTC_USD": [
+            { "01.02/0.05 BTC": { "sell > buy": "9802 > 9782" } }
+          ]
         }
       }
     }
